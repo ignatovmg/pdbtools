@@ -8,6 +8,8 @@ from path import Path
 from collections import OrderedDict
 from itertools import chain
 from tqdm import tqdm
+import pybel
+import traceback
 
 from rdkit import DataStructs
 from rdkit.Chem import rdFMCS
@@ -65,17 +67,17 @@ def _read_all_sdf(db_file, index_file):
 
 class LigandExpo(object):
     # https://bitbucket.org/abc-group/ligtbm/raw/1455c1c10eec304a7bc18a90bd05a37915bf43b8/backend/ligtbm/data/Ligand_Expo/chemid_to_liginfo.json
-    _CHEMID_TO_LIGINFO = utils.read_json(DATA_DIR.joinpath('ligand_expo', 'chemid_to_liginfo.json'))
+    _CHEMID_TO_LIGINFO = utils.read_json(DATA_DIR / 'ligand_expo' / 'chemid_to_liginfo.json')
 
     # https://bitbucket.org/abc-group/ligtbm/raw/1455c1c10eec304a7bc18a90bd05a37915bf43b8/backend/ligtbm/data/Ligand_Expo/chemid_to_pdbids.json
-    _CC_TO_PDB = utils.read_json(DATA_DIR.joinpath('ligand_expo', 'chemid_to_pdbids.json'))
+    _CC_TO_PDB = utils.read_json(DATA_DIR / 'ligand_expo' / 'chemid_to_pdbids.json')
 
     # https://bitbucket.org/abc-group/ligtbm/raw/1455c1c10eec304a7bc18a90bd05a37915bf43b8/backend/ligtbm/data/Ligand_Expo/pdbid_to_chemids.json
-    _PDB_TO_CC = utils.read_json(DATA_DIR.joinpath('ligand_expo', 'pdbid_to_chemids.json'))
+    _PDB_TO_CC = utils.read_json(DATA_DIR / 'ligand_expo' / 'pdbid_to_chemids.json')
 
     # Ideal geometries
     # http://ligand-expo.rcsb.org/dictionaries/Components-pub.sdf.gz
-    _CHEMID_TO_IDEAL_SDF = _parse_sdf(DATA_DIR.joinpath('ligand_expo', 'Components-pub.sdf'))
+    _CHEMID_TO_IDEAL_SDF = _parse_sdf(DATA_DIR / 'ligand_expo' / 'Components-pub.sdf')
 
     # All ligands in PDB: http://ligand-expo.rcsb.org/dictionaries/all-sdf.sdf.gz
     # Index file was made using:
@@ -149,7 +151,8 @@ class LigandExpo(object):
             logger.error(f'Key Error for {all_sdf_id}, returning None')
             mol = None
         except Exception as e:
-            logger.error(f'RDkit reading failed for {all_sdf_id}, returning None ({e})')
+            logger.exception(e)
+            logger.error(f'RDkit reading failed for {all_sdf_id}, returning None')
             mol = None
         finally:
             cls._CHEMID_TO_ALL_SDF.close()
@@ -602,3 +605,76 @@ class LigandExpo(object):
         smiles_to_chemids = {s: list(sorted(list(set([chemid_list[i] for i in ids])))) for s, ids in smiles_to_ids.items()}
         return smiles_to_chemids
 
+
+def add_hs(out_mol, in_mol):
+    # add hydrogens
+    mol = next(pybel.readfile('mol', in_mol))
+    mol.addh()
+    mol.localopt('mmff94', steps=500)
+    mol.write('mol', out_mol, overwrite=True)
+
+    # fix back the coordinates
+    mol = Chem.MolFromMolFile(out_mol, removeHs=False)
+    ag = utils.mol_to_ag(mol)
+    ref_ag = utils.mol_to_ag(Chem.MolFromMolFile(in_mol, removeHs=True))
+    tr = prody.calcTransformation(ag.heavy, ref_ag.heavy)
+    ag = tr.apply(ag)
+    prody.writePDB(Path(out_mol).stripext() + '.pdb', ag)
+
+    utils.change_mol_coords(mol, ag.getCoords())
+    AllChem.ComputeGasteigerCharges(mol, throwOnParamFailure=True)
+
+    Chem.MolToMolFile(mol, out_mol)
+
+
+def get_fragments(outdir, mol, prefix='rigid_'):
+    frag_list = []
+    try:
+        mol_tree = LigandTree(mol)
+        mol_ag = utils.mol_to_ag(mol)
+        frag_id = 0
+        # iterate rigid fragments
+        for node in mol_tree.tree.all_nodes():
+            node_ids = mol_tree.node_to_mol_ids(node)
+            if len(mol_ag[node_ids].heavy) < 3:
+                continue
+
+            # match fragment back to mol
+            node_smiles = mol_tree.node_to_smiles(node)
+            frag_mol = Chem.MolFromSmiles(node_smiles)
+            match = None
+            for m in mol.GetSubstructMatches(frag_mol):
+                if set(m) == set(node_ids):
+                    match = m
+                    break
+            if match is None:
+                print("Couldn't match fragment to it's ligand", node_smiles, outdir)
+                continue
+
+            # add coordinates to fragment
+            AllChem.Compute2DCoords(frag_mol)
+            new_coords = mol_ag.getCoords()[list(match)]
+            assert new_coords.shape[0] == frag_mol.GetNumAtoms()
+            utils.change_mol_coords(frag_mol, new_coords)
+
+            out_name = f'{prefix}{frag_id:03d}.mol'
+            Chem.MolToMolFile(frag_mol, outdir / out_name)
+
+            add_hs(outdir / f'{prefix}{frag_id:03d}_ah.mol', outdir / out_name)
+
+            frag_list.append(
+                OrderedDict(
+                    mol_path=f'{prefix}{frag_id:03d}_ah.mol',
+                    atom_ids=node_ids,
+                    smiles=node_smiles
+                )
+            )
+            frag_id += 1
+
+        if len(frag_list) == 0:
+            raise RuntimeError("Couldn't find any fragments")
+    except:
+        print(traceback.format_exc())
+        return []
+
+    return frag_list

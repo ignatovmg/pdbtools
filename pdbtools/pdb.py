@@ -137,6 +137,19 @@ def align(mob_ag, ref_ag, mob_chain=None, ref_chain=None):
     return aligned, result, (mob_aln, ref_aln)
 
 
+def get_symmetry_mates(pdb, cutoff=6):
+    pdb_file = pdb_file_path(pdb)
+    cmd.reinitialize()
+    cmd.load(pdb_file, 'orig')
+    cmd.symexp('symm', 'orig', 'orig', cutoff)
+    tmp_file = utils.tmp_file(prefix='pdbtools-', suffix='.pdb')
+    cmd.save(tmp_file, 'symm*')
+    symm_ag = prody.parsePDB(tmp_file)
+    Path(tmp_file).remove_p()
+    cmd.delete('all')
+    return symm_ag
+
+
 def get_sequence(pdb, chain):
     ag = get_atom_group(pdb, chain=chain)
     if ag is None:

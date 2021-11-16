@@ -12,17 +12,20 @@ channels:
   - ambermd
 dependencies:
   - python==3.7.*
-  - numpy==1.*
+  - click
+  - numpy==1.15.*
   - openbabel==2.4.*
-  - rdkit
+  - rdkit==2019.09.*
   - pandas==0.24.*
   - scipy==1.4.*
-  - path.py
+  - path.py==11.5.*
   - treelib==1.5.*
+  - Cython==0.29.*
   - networkx==2.4.*
   - tqdm
-  - biopython==1.74.*
-  - pymol
+  - biopython
+  - pymol==2.3.*
+  - cmake==3.12.*
   - pytest
   - xmltodict
   - psutil

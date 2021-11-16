@@ -4,14 +4,14 @@ set -euo pipefail
 # Directories to use
 SRC_DIR="$(cd $(dirname "$0") && pwd)"
 ENV_DIR="$(pwd)/venv"
-NUMPROC=2 #$(nproc)
+NUMPROC=$(nproc)
 
 # Specific commits to checkout
 SBLU_COMMIT=0cdd4ef
 PRODY_VERSION=1.10
 
 # Setup conda env
-if [ '' ]; then
+if [ '1' ]; then
 
 if [ ! -d "${ENV_DIR}" ]; then
     conda env create -f "${SRC_DIR}/conda-env.yml" --prefix "${ENV_DIR}"
@@ -33,7 +33,7 @@ set -u
 
 # setting env variables
 set +u
-export PATH="${ENV_DIR}/lib:${PATH}"
+export PATH="${ENV_DIR}/bin:${ENV_DIR}/lib:${PATH}"
 export LD_LIBRARY_PATH="${ENV_DIR}/lib:${LD_LIBRARY_PATH}"
 export PKG_CONFIG_PATH="${ENV_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 set -u
@@ -55,6 +55,6 @@ rm -rf sb-lab-utils
 cp "${SRC_DIR}/deps/psfgen_1.6.5_Linux-x86_64-multicore" "${ENV_DIR}/bin/psfgen"
 chmod u+x "${ENV_DIR}/bin/psfgen"
 
-pip install -e .
+pip install -e ${SRC_DIR}
 
 echo "Done. To use the new environment, call \`source \"${ENV_DIR}/bin/activate\"\`"

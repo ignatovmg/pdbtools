@@ -5,21 +5,22 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md')) as f:
     long_description = f.read()
 
 # Arguments marked as "Required" below must be included for upload to PyPI.
 # Fields marked as "Optional" may be commented out.
-with open(path.join(here, 'requirements.txt'), 'r') as f:
-    dependencies = [x.strip() for x in f]
+#with open(path.join(here, 'requirements.txt'), 'r') as f:
+#    dependencies = [x.strip() for x in f]
+dependencies = []
 
 setup(
-    name='mol_grid',
+    name='pdbtools',
     version='0.0.0',
-    description='Functionality for converting molecules to 3D grids',
+    description='PDB utils',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://bitbucket.org/ignatovmg/mol_grid',
+    url='https://bitbucket.org/ignatovmg/pdbtools',
     author='Mikhail Ignatov',
     author_email='ignatovmg@gmail.com',
     classifiers=[  # Optional
@@ -65,7 +66,7 @@ setup(
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
