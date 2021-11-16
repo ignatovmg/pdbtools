@@ -1,0 +1,28 @@
+channels:
+  - openbabel
+  - rdkit
+  - anaconda
+  - conda-forge
+  #- conda-forge/label/old_feature_broken  # this is needed for openmpi 3.0.0. TODO: check if this version is fine
+  - e3sm
+  - eumetsat
+  - omnia
+  - schrodinger
+  - pytorch
+  - ambermd
+dependencies:
+  - python==3.7.*
+  - numpy==1.*
+  - openbabel==2.4.*
+  - rdkit
+  - pandas==0.24.*
+  - scipy==1.4.*
+  - path.py
+  - treelib==1.5.*
+  - networkx==2.4.*
+  - tqdm
+  - biopython==1.74.*
+  - pymol
+  - pytest
+  - xmltodict
+  - psutil
